@@ -346,14 +346,8 @@ class MPC:
         assert len(initial_state) == self._state_dim
         assert target.shape == (self._state_dim, self.control_horizon + 1)
 
-        (
-            obstacle_x,
-            obstacle_y,
-            obstacle_radius,
-            obstacle_velocity_x,
-            obstacle_velocity_y,
-        ) = (
-            obstacle if obstacle is not None else (None, None, None, None, None)
+        obstacle_x, obstacle_y, obstacle_radius = (
+            obstacle if obstacle is not None else (None, None, None)
         )
 
         self._initial_state.value = np.array(initial_state)
@@ -421,7 +415,7 @@ class MPC:
                 self._B_params[k].value = B_k
                 self._C_params[k].value = C_k
 
-            # Obstacle half-plane params (based on x_guess at step k+1)
+            # Obstacle half-plane params for a static circular obstacle.
             obstacle_normals_x = np.zeros(self.control_horizon)
             obstacle_normals_y = np.zeros(self.control_horizon)
             obstacle_distances = np.zeros(self.control_horizon)
@@ -432,11 +426,8 @@ class MPC:
                     obstacle_normals_y[k] = 0.0
                     obstacle_distances[k] = -1000.0
                 else:
-                    # We need a stable point to calculate the normal vector.
-                    # Also we use the current belief of the obstacle moving velocity
-                    # to predict where its position will be at each k of th horizon
-                    dx = x_ref[k + 1] - obstacle_x - obstacle_velocity_x * k * self.dt
-                    dy = y_ref[k + 1] - obstacle_y - obstacle_velocity_y * k * self.dt
+                    dx = x_ref[k + 1] - obstacle_x
+                    dy = y_ref[k + 1] - obstacle_y
 
                     dist = np.hypot(dx, dy)
                     dist = dist if dist > 1e-5 else 1e-5

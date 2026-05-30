@@ -18,7 +18,7 @@ from cvxpy_mpc.utils import (
     detect_obstacle_camera,
     ego_to_global,
     get_ref_trajectory,
-    update_path_obstacles,
+    load_static_obstacles,
 )
 from scipy.integrate import odeint
 import yaml
@@ -56,7 +56,7 @@ class MPCSim:
             sim_config["path"]["interpolation_step"],
         )
 
-        self.path_obstacles = list(sim_config["obstacles"])
+        self.path_obstacles = load_static_obstacles(sim_config["obstacles"])
 
         # Helper variables to keep track of the sim
         self.sim_time: float = 0.0
@@ -96,8 +96,7 @@ class MPCSim:
         # Obstacle visualization
         self.obs_circles: list[plt.Circle] = []
         if self.path_obstacles:
-            initial_obs = update_path_obstacles(self.path_obstacles, self.path, 0.0)
-            for ox, oy, rad, _, _ in initial_obs:
+            for ox, oy, rad in self.path_obstacles:
                 c = plt.Circle(
                     (ox, oy),
                     rad,
@@ -201,15 +200,12 @@ class MPCSim:
                     return
                 # External obstacle detection pipeline
                 if self.path_obstacles:
-                    dynamic_obs = update_path_obstacles(
-                        self.path_obstacles, self.path, self.mpc.dt
-                    )
                     self.detected_obs = detect_obstacle_camera(
-                        dynamic_obs,
+                        self.path_obstacles,
                         self.state[0],
                         self.state[1],
                         self.state[3],
-                self.sensor_max_range,
+                        self.sensor_max_range,
                         self.sensor_fov_deg,
                     )
                 else:
@@ -228,7 +224,7 @@ class MPCSim:
 
                 # Transform global obstacle to ego frame
                 if self.detected_obs is not None:
-                    gx, gy, r, vx, vy = self.detected_obs
+                    gx, gy, r = self.detected_obs
                     dx = gx - self.state[0]
                     dy = gy - self.state[1]
                     ct, st = np.cos(-self.state[3]), np.sin(-self.state[3])
@@ -236,8 +232,6 @@ class MPCSim:
                         dx * ct - dy * st,
                         dy * ct + dx * st,
                         r,
-                        vx * ct - vy * st,
-                        vy * ct + vx * st,
                     )
                 else:
                     obs_ego = None
@@ -256,7 +250,9 @@ class MPCSim:
 
                 # Convert MPC preview from ego->world BEFORE advancing state,
                 # so it's anchored to the state it was computed for
-                self.optimized_trajectory = ego_to_global(self.state, x_mpc)
+                self.optimized_trajectory = (
+                    ego_to_global(self.state, x_mpc) if x_mpc is not None else None
+                )
 
                 self.state = self.predict_next_state(
                     self.state, [self.control[0], self.control[1]], self.mpc.dt
@@ -319,8 +315,7 @@ class MPCSim:
         )
 
         if self.path_obstacles:
-            current_obs = update_path_obstacles(self.path_obstacles, self.path, 0.0)
-            for i, (ox, oy, _, _, _) in enumerate(current_obs):
+            for i, (ox, oy, _) in enumerate(self.path_obstacles):
                 self.obs_circles[i].set_center((ox, oy))
 
             # Sensor FOV wedge

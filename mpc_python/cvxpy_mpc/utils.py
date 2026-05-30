@@ -151,58 +151,12 @@ def ego_to_global(
     return traj
 
 
-def compute_path_arc_lengths(
-    path: npt.NDArray[np.float64],
-) -> tuple[npt.NDArray[np.float64], float]:
-    """Compute cumulative arc-length along a (3,N) path."""
-    cdist = np.zeros(path.shape[1])
-    cdist[1:] = np.cumsum(np.hypot(np.diff(path[0]), np.diff(path[1])))
-    return cdist, cdist[-1]
-
-
-def update_path_obstacles(
+def load_static_obstacles(
     obstacles: list[dict],
-    path: npt.NDArray[np.float64],
-    dt: float,
-) -> list[list[float]]:
-    """Advance path-following obstacles and return [x, y, radius, vx, vy] list.
-
-    Each obstacle dict: {"distance": float, "speed": float, "radius": float}
-    Obstacles wrap around at the path end.
-    """
-    # ideally this should only be precomputed once
-    cdist, total_length = compute_path_arc_lengths(path)
-
-    result = []
-    for obs in obstacles:
-        obs["distance"] = (obs["distance"] + obs["speed"] * dt) % total_length
-        x = np.interp(obs["distance"], cdist, path[0])
-        y = np.interp(obs["distance"], cdist, path[1])
-
-        idx = max(
-            0,
-            min(
-                np.searchsorted(cdist, obs["distance"]) - 1,
-                path.shape[1] - 2,
-            ),
-        )
-        seg_dx = path[0, idx + 1] - path[0, idx]
-        seg_dy = path[1, idx + 1] - path[1, idx]
-        seg_len = np.hypot(seg_dx, seg_dy)
-        if seg_len > 1e-6:
-            tx = seg_dx / seg_len
-            ty = seg_dy / seg_len
-            vx = tx * obs["speed"]
-            vy = ty * obs["speed"]
-            lateral = obs.get("lateral_offset", 0.0)
-            if lateral != 0.0:
-                x += -ty * lateral
-                y += tx * lateral
-        else:
-            vx, vy = 0.0, 0.0
-
-        result.append([x, y, obs["radius"], vx, vy])
-    return result
+) -> list[tuple[float, float, float]]:
+    return [
+        (float(obs["x"]), float(obs["y"]), float(obs["radius"])) for obs in obstacles
+    ]
 
 
 def compute_errors(
@@ -254,23 +208,25 @@ def compute_errors(
 
 
 def detect_obstacle_camera(
-    obstacles: list[tuple[float, float, float, float, float]],
+    obstacles: list[tuple[float, float, float]],
     robot_x: float,
     robot_y: float,
     robot_heading: float,
     max_range: float,
     fov_degrees: float = 60.0,
-) -> tuple[float, float, float, float, float] | None:
+) -> tuple[float, float, float] | None:
 
     closest = None
     closest_dist = float("inf")
     fov_rad = np.radians(fov_degrees)
     for obs in obstacles:
-        obs_x, obs_y, obs_r, obs_vx, obs_vy = obs
+        obs_x, obs_y, obs_r = obs
 
         dx = obs_x - robot_x
         dy = obs_y - robot_y
         d = np.hypot(dx, dy)
+        if d <= obs_r:
+            return obs
 
         dist_to_edge = max(0.0, d - obs_r)
 
