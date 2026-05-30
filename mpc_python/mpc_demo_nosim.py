@@ -14,6 +14,7 @@ import numpy as np
 import numpy.typing as npt
 from cvxpy_mpc import MPC
 from cvxpy_mpc.utils import (
+    StaticObstacle,
     compute_path_from_wp,
     detect_obstacle_camera,
     ego_to_global,
@@ -47,7 +48,7 @@ class MPCSim:
             horizon_time=4.0,
         )
         self.K: int = self.mpc.control_horizon
-        self.detected_obs: tuple[float, float, float] | None = None
+        self.detected_obs: StaticObstacle | None = None
 
         # Path from waypoint interpolation
         self.path: npt.NDArray[np.float64] = compute_path_from_wp(
@@ -250,9 +251,12 @@ class MPCSim:
 
                 # Convert MPC preview from ego->world BEFORE advancing state,
                 # so it's anchored to the state it was computed for
-                self.optimized_trajectory = (
-                    ego_to_global(self.state, x_mpc) if x_mpc is not None else None
-                )
+                if x_mpc is None:
+                    # Solver fallback returned only emergency controls, so there is
+                    # no optimized preview trajectory to display for this step.
+                    self.optimized_trajectory = None
+                else:
+                    self.optimized_trajectory = ego_to_global(self.state, x_mpc)
 
                 self.state = self.predict_next_state(
                     self.state, [self.control[0], self.control[1]], self.mpc.dt

@@ -1,6 +1,10 @@
+from typing import TypeAlias
+
 import numpy as np
 import numpy.typing as npt
 from scipy.interpolate import splprep, splev
+
+StaticObstacle: TypeAlias = tuple[float, float, float]
 
 
 def compute_path_from_wp(
@@ -153,7 +157,8 @@ def ego_to_global(
 
 def load_static_obstacles(
     obstacles: list[dict],
-) -> list[tuple[float, float, float]]:
+) -> list[StaticObstacle]:
+    """Return static obstacles as `(x, y, radius)` tuples."""
     return [
         (float(obs["x"]), float(obs["y"]), float(obs["radius"])) for obs in obstacles
     ]
@@ -208,13 +213,14 @@ def compute_errors(
 
 
 def detect_obstacle_camera(
-    obstacles: list[tuple[float, float, float]],
+    obstacles: list[StaticObstacle],
     robot_x: float,
     robot_y: float,
     robot_heading: float,
     max_range: float,
     fov_degrees: float = 60.0,
-) -> tuple[float, float, float] | None:
+) -> StaticObstacle | None:
+    """Return the closest visible static obstacle as `(x, y, radius)`."""
 
     closest = None
     closest_dist = float("inf")
