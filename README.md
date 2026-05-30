@@ -102,20 +102,6 @@ python3 mpc_demo_nosim.py
 
 3. **Obstacle Avoidance** — halfplane constraints to avoid track collisions ([3.0](notebooks/3.0-MPC-v3-track-constrains.ipynb), [3.1](notebooks/3.1-better-track.ipynb)) — Still **work in progress**!
 
-## VDA5050 Lean4 MVP scaffold
-
-A standalone Lean4 package is available in `vda5050_lean/` with a module layout for:
-
-- foundational VDA5050 types/enums/topics
-- protocol message schema structures
-- validity predicates
-- order/update/cancel workflow semantics
-- obligation and error modeling
-- trace conformance oracle skeleton
-- theorem modules and examples
-
-See `vda5050_lean/README.md` for details.
-
 ## References & Special Thanks :star: :
 * [Prof. Borrelli - mpc papers and material](https://borrelli.me.berkeley.edu/pdfpub/IV_KinematicMPC_jason.pdf)
 * [AtsushiSakai - pythonrobotics](https://github.com/AtsushiSakai/PythonRobotics/)
