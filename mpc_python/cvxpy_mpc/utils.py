@@ -64,7 +64,7 @@ def get_nn_idx(state: npt.NDArray[np.float64], path: npt.NDArray[np.float64]) ->
             target_idx = nn_idx
         else:
             target_idx = nn_idx + 1
-    except IndexError as e:
+    except IndexError:
         target_idx = nn_idx
     return target_idx
 

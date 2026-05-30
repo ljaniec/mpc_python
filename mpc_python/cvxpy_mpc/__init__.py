@@ -1,1 +1,1 @@
-from .cvxpy_mpc import MPC
+from .cvxpy_mpc import MPC as MPC
